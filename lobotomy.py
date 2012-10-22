@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import signal
 
 from lobotomy.server import LoBotomyServer
@@ -15,7 +17,7 @@ signal.signal(signal.SIGINT, shutdown)
 
 # setup simple logging to print messages from server
 import logging
-logging.basicConfig(level = 'DEBUG')
+logging.basicConfig(format = '[ %(levelname)7s ] %(message)s', level = logging.DEBUG)
 
 # start the server
 server.serve_forever()

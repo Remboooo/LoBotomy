@@ -104,8 +104,16 @@ class LoBotomyServer:
 			angle, distance = player.move_action
 			# calculate new values
 			x, y = util.move_wrapped((player.x, player.y), angle, distance, (self.width, self.height))
-			# subtract energy cost
-			player.energy -= game.move_cost(distance)
+			# log action and subtract energy cost
+			cost = game.move_cost(distance)
+			# TODO: truncate location tuples to x decimals
+			logging.info('player {} moved from {} to {} (cost: {})'.format(
+				player.name,
+				(player.x, player.y),
+				(x, y),
+				cost
+			))
+			player.energy -= cost
 			if player.energy <= 0.0:
 				# signal player is dead
 				player.signal_death(config.game.dead_turns)
@@ -117,44 +125,62 @@ class LoBotomyServer:
 		for player in players:
 			# unpack required information
 			(angle, distance, radius, charge) = player.fire_action
+			# TODO: log fire action for player
+
 			# calculate the epicenter of the blast
 			epicenter = util.move_wrapped((player.x, player.y), angle, distance, (self.width, self.height))
 
 			# subtract energy cost
-			player.energy -= game.fire_cost(distance, radius, charge)
+			cost = game.fire_cost(distance, radius, charge)
+			logging.info('player {} at {} fired at {} (radius: {}, charge: {})'.format(
+				player.name,
+				(player.x, player.y),
+				epicenter,
+				radius,
+				charge
+			))
+
+			# calculate the bounding box for the blast
+			bounds = (
+				epicenter[0] - radius, epicenter[1] - radius,
+				epicenter[0] + radius, epicenter[1] + radius
+			)
+			# collect all players in the bounding box for the blast
+			subjects = set()
+			# TODO: change self.field.root.bounds into something less aweful
+			for region in util.generate_wrapped_bounds(self.field.root.bounds, bounds):
+				subjects = subjects.union(self.field.find_all(region))
+
+			# create a wrapped radius to check distance against
+			radius = util.WrappedRadius(epicenter, radius, (self.width, self.height))
+			# check if subject in blast radius (bounding box possibly selects too many players)
+			for subject in subjects:
+				# calculate distance to epicenter for all subjects, signal hit if ... hit
+				if (subject.x, subject.y) in radius:
+					subject.signal_hit(
+						player.name,
+						util.angle(radius.distance((subject.x, subject.y))[1], epicenter),
+						charge
+					)
+
+			player.energy -= cost
 			if player.energy <= 0.0:
 				# signal player is dead
 				player.signal_death(config.game.dead_turns)
-			else:
-				# calculate the bounding box for the blast
-				bounds = (
-					epicenter[0] - radius, epicenter[1] - radius,
-					epicenter[0] + radius, epicenter[1] + radius
-				)
-				# collect all players in the bounding box for the blast
-				subjects = set()
-				# TODO: change self.field.root.bounds into something less aweful
-				for region in util.generate_wrapped_bounds(self.field.root.bounds, bounds):
-					subjects = subjects.union(self.field.find_all(region))
-
-				# create a wrapped radius to check distance against
-				radius = util.WrappedRadius(epicenter, radius, (self.width, self.height))
-				# check if subject in blast radius (bounding box possibly selects too many players)
-				for subject in subjects:
-					# calculate distance to epicenter for all subjects, signal hit if ... hit
-					if (subject.x, subject.y) in radius:
-						subject.signal_hit(
-							player.name,
-							util.angle(radius.distance((subject.x, subject.y))[1], epicenter),
-							charge
-						)
 
 	def execute_scans(self, players):
 		for player in players:
 			(radius,) = player.scan_action
+			# TODO: log scan action for player
+			logging.info('player {} at {} scanned with radius {}'.format(
+				player.name,
+				(player.x, player.y),
+				radius
+			))
 
 			# subtract energy cost
-			player.energy -= game.scan_cost(radius)
+			cost = game.scan_cost(radius)
+			player.energy -= cost
 			if player.energy <= 0.0:
 				# signal player is dead
 				player.signal_death(config.game.dead_turns)
