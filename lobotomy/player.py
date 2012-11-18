@@ -5,14 +5,13 @@ import socket
 from threading import Thread
 
 from lobotomy import config, game, LoBotomyException, protocol
-from lobotomy.quadtree import Point
 from lobotomy.util import enum
 
 
 # enumerate possible player states
 PlayerState = enum('VOID', 'WAITING', 'ACTING', 'DEAD')
 
-class Player(Thread, Point):
+class Player(Thread):
 	"""
 	Class modeling a player, handling messages from and to a client.
 
@@ -21,9 +20,7 @@ class Player(Thread, Point):
 
 	def __init__(self, server, sock):
 		# call the constructor of Thread
-		Thread.__init__(self)
-		# call the constructor of Point
-		Point.__init__(self, None, None)
+		super().__init__()
 
 		# indicate being a daemon thread
 		self.daemon = True
@@ -33,11 +30,11 @@ class Player(Thread, Point):
 		self._shutdown = False
 
 		self._handlers = {
-		'join': self.handle_join,
-		'spawn': self.handle_spawn,
-		'move': self.handle_move,
-		'fire': self.handle_fire,
-		'scan': self.handle_scan,
+			'join': self.handle_join,
+			'spawn': self.handle_spawn,
+			'move': self.handle_move,
+			'fire': self.handle_fire,
+			'scan': self.handle_scan,
 		}
 
 		self.state = PlayerState.VOID
@@ -48,6 +45,7 @@ class Player(Thread, Point):
 		self.scan_action = None
 
 		# game state variables
+		self.location = (None, None)
 		self.energy = 0.0
 		self.dead_turns = 0
 
@@ -72,11 +70,11 @@ class Player(Thread, Point):
 					# handle command
 					self._handlers[command](**arguments)
 				except LoBotomyException as e:
-					self.send_error(e.errno)
+					self.send_error(e.errno, str(e))
 				except KeyError as e:
-					self.send_error(301)
+					self.send_error(301, str(e))
 				except ValueError as e:
-					self.send_error(302)
+					self.send_error(302, str(e))
 		except Exception as e:
 			if not self._shutdown:
 				# error occurred during regular operations
@@ -84,7 +82,8 @@ class Player(Thread, Point):
 				self.shutdown()
 
 	def signal_begin(self, turn_number, energy):
-		self.state = PlayerState.ACTING
+		if self.state is PlayerState.WAITING:
+			self.state = PlayerState.ACTING
 
 		# reset action requests
 		self.move_action = None
@@ -94,7 +93,8 @@ class Player(Thread, Point):
 		self.send(protocol.begin(turn_number, energy).values())
 
 	def signal_end(self):
-		self.state = PlayerState.WAITING
+		if self.state is not PlayerState.DEAD:
+			self.state = PlayerState.WAITING
 		self.send(protocol.end().values())
 
 	def signal_hit(self, name, angle, charge):
@@ -102,6 +102,13 @@ class Player(Thread, Point):
 
 	def signal_death(self, turns):
 		self.state = PlayerState.DEAD
+		self.dead_turns = turns
+
+		# reset action requests for remainder of turn
+		self.move_action = None
+		self.fire_action = None
+		self.scan_action = None
+
 		self.send(protocol.death(turns).values())
 
 	def signal_detect(self, name, angle, distance, energy):
@@ -163,9 +170,13 @@ class Player(Thread, Point):
 
 		self.scan_action = (radius,)
 
-	def send_error(self, error):
+	def send_error(self, error, message = ''):
 		logging.debug('client caused error %d', error)
-		self.send(protocol.error(error, protocol.ERRORS[error]).values())
+		if message:
+			message = protocol.ERRORS[error] + ': ' + str(message)
+		else:
+			message = protocol.ERRORS[error]
+		self.send(protocol.error(error, message).values())
 
 	def send(self, command):
 		# send all data as strings separated by spaces, terminated by a newline

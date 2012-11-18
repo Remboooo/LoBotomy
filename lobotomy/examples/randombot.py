@@ -45,10 +45,9 @@ class ExampleBot:
 		while self.in_game:
 			# Ask to be spawned
 			self.send_spawn()
-			logging.info('Requesting spawn...')
 			self.parse_pregame()
 			while self.playing:
-				logging.info('Let\'s play!')
+				logging.info('Let\'s play! (at {} energy)'.format(self.energy))
 				# Wait for begin
 				cmds = self.determine_commands()
 				for cmd in cmds:
@@ -79,6 +78,7 @@ class ExampleBot:
 		'''
 		Send a spawn request to the server
 		'''
+		logging.info('Requesting spawn...')
 		self.send_msg('spawn')
 
 	def parse_pregame(self):
@@ -100,8 +100,11 @@ class ExampleBot:
 				elif command == 'begin':
 					self.turn_number = parsed['turn_number']
 					self.energy = parsed['energy']
-					self.playing = True
+					self.playing = self.energy > 0.0
 					return
+				elif command == 'death':
+					logging.info('We died! Dead for {} turns'.format(parsed['turns']))
+					self.playing = False
 				else:
 					continue
 			except KeyError:
@@ -127,20 +130,20 @@ class ExampleBot:
 		if random.randint(0, 1):
 			cmd = 'move '
 			cmd += str(random.random() * 2 * math.pi) + ' ' # angle
-			cmd += str(random.random() * 0.2 * self.energy) # distance
+			cmd += str(random.random() * 0.4 * self.energy) # distance
 			cmds.append(cmd)
 		# Think of fire
 		if random.randint(0, 1):
 			cmd = 'fire '
 			cmd += str(random.random() * 2 * math.pi) + ' ' # angle
 			cmd += str(random.random() * 0.2 * self.energy) + ' ' # distance
-			cmd += str(random.random() * 0.1 * self.energy) + ' ' # radius
-			cmd += str(random.random() * 0.1 * self.energy) # charge
+			cmd += str(random.random() * 0.2 * self.energy) + ' ' # radius
+			cmd += str(random.random() * 0.4 * self.energy) # charge
 			cmds.append(cmd)
 		# Think of scan
 		if random.randint(0, 1):
 			cmd = 'scan '
-			cmd += str(random.random() * 0.2 * self.energy) # radius
+			cmd += str(random.random() * 0.4 * self.energy) # radius
 			cmds.append(cmd)
 		return cmds
 

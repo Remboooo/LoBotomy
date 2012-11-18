@@ -1,7 +1,7 @@
 Network connection life cycle
 =============================
 
-Communication with a LoBotomy server is done by opening a network socket to it and starting a conversation.
+Communication with a LoBotomy server is done by opening a network socket (TCP) to it and starting a conversation.
 To keep things simple, such a conversation is done by sending strings over the network connection.
 A single command consists of the command's name and its arguments separated by spaces, terminated with a newline character (`\n`).
 Arguments are all encoded as strings over the wire, so a float will be sent as `"0.12345"`, for example.
@@ -113,7 +113,7 @@ Sent by the server to indicate that you were hit by a bomb, with the following d
 ### death
 Format: `death turns`
 
-Sent by the server to inform you that you are dead and how long you need to wait before you can respawn:
+Sent by the server to inform you that you are dead and how long you need to wait before you can respawn (yes, that's something you need to do yourself):
 
 1. **turns** (integer): how long you will stay dead.
 

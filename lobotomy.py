@@ -17,7 +17,7 @@ signal.signal(signal.SIGINT, shutdown)
 
 # setup simple logging to print messages from server
 import logging
-logging.basicConfig(format = '[ %(levelname)7s ] %(message)s', level = logging.DEBUG)
+logging.basicConfig(format = '[ %(levelname)8s ] %(message)s', level = logging.DEBUG)
 
 # start the server
 server.serve_forever()
