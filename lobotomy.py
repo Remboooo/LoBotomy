@@ -19,5 +19,12 @@ signal.signal(signal.SIGINT, shutdown)
 import logging
 logging.basicConfig(format = '[ %(levelname)8s ] %(message)s', level = logging.DEBUG)
 
+# start webinterface
+from lobotomy.webserver import WebServer
+webserver = WebServer(server)
+
 # start the server
 server.serve_forever()
+
+# kill the webserver
+webserver.stop()

@@ -10,6 +10,8 @@ from lobotomy import config, game, LoBotomyException, protocol, util
 from lobotomy.event import Emitter
 from lobotomy.player import Player, PlayerState
 
+from lobotomy.spectatoremitter import SpectatorEmitter
+
 class LoBotomyServer(Emitter):
 	"""
 	Server for a LoBotomy game.
@@ -29,6 +31,17 @@ class LoBotomyServer(Emitter):
 		self._in_game = []
 
 		self.turn_number = 0
+
+		self._shutdown = False
+		self.spectator_emitter = SpectatorEmitter(self, config.host.spectator_delay)
+		
+	def get_state(self):
+		state = {
+			'players': self._players,
+			'in_game': self._in_game,
+			'turn_number': self.turn_number,
+			}
+		return state
 
 	def serve_forever(self):
 		logging.debug('preparing network setup for serving at "%s:%d"', self.host, self.port)

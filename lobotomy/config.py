@@ -6,6 +6,11 @@ class host:
 	address = ''
 	# port to listen on (1452)
 	port = sum(map(ord, 'LoBotomyServer'))
+	# delay (in seconds) for spectator streams
+	spectator_delay = 1
+	# interface and port for webinterface
+	http_port = 9999
+	http_host = '127.0.0.1'
 
 # store general game settings
 class game:
