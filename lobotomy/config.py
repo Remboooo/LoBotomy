@@ -5,12 +5,12 @@ class host:
 	# network address to bind to
 	address = ''
 	# port to listen on (1452)
-	port = 9998 # sum(map(ord, 'LoBotomyServer'))
+	port = sum(map(ord, 'LoBotomyServer'))
 	# delay (in seconds) for spectator streams
 	spectator_delay = 60
 	# interface and port for spectators
-	spectator_port = 9999
-	spectator_host = '0.0.0.0'
+	spectator_port = port+1
+	spectator_host = ''
 
 # store general game settings
 class game:

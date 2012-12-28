@@ -46,6 +46,7 @@ class LoBotomyServer(Emitter):
 	def serve_forever(self):
 		logging.debug('preparing network setup for serving at "%s:%d"', self.host, self.port)
 		self._ssock = socket.socket()
+		self._ssock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		try:
 			# bind a socket to the specified host and port
 			self._ssock.bind((self.host, self.port))

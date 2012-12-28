@@ -16,6 +16,7 @@ class SpectatorServer():
 		self.port = port
 		self.host = host
 		self._ssock = socket.socket()
+		self._ssock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self._ssock.bind((host, port))
 		self._ssock.listen(5)
 		logging.info('successfully bound to %s:%d, listening for spectators', host, port)
