@@ -125,10 +125,6 @@ def parse_msg(msg):
 	a dictionary containing parameters for the given protocol message,
 	including the message name
 	"""
-	try:
-		chunks = msg.split()
-		return PARSERS[chunks[0]](*chunks[1:])
-	except Exception as e:
-		# TODO: think of something better to do here
-		return e
+	chunks = msg.split()
+	return PARSERS[chunks[0]](*chunks[1:])
 

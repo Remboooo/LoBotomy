@@ -1,12 +1,14 @@
 # make sure flake8 ignores this file: flake8: noqa
 
+import pdb
 import logging
 import random
 import socket
 from threading import Thread
 import time
+import cmd
 
-from lobotomy import config, game, LoBotomyException, protocol, util
+from lobotomy import manual_control, config, game, LoBotomyException, protocol, util
 from lobotomy.event import Emitter
 from lobotomy.player import Player, PlayerState
 
@@ -43,6 +45,23 @@ class LoBotomyServer(Emitter):
 			}
 		return state
 
+	def socket_listen(self):
+		# make the socket listen for new connections
+		self._ssock.listen(5)
+
+		# loop as long as a shutdown was not requested
+		while not self._shutdown:
+			try:
+				# accept a connection from a client
+				client, address = self._ssock.accept()
+				logging.info('client from %s connected', address[0])
+				Player(self, client).start()
+			except Exception as e:
+				if not self._shutdown:
+					# not an expected exception
+					logging.critical('unexpected network error, shutting down server: %s', str(e))
+					self.shutdown()
+
 	def serve_forever(self):
 		logging.debug('preparing network setup for serving at "%s:%d"', self.host, self.port)
 		self._ssock = socket.socket()
@@ -50,26 +69,16 @@ class LoBotomyServer(Emitter):
 		try:
 			# bind a socket to the specified host and port
 			self._ssock.bind((self.host, self.port))
-			# make the socket listen for new connections
-			self._ssock.listen(5)
 			logging.info('successfully bound to %s:%d, listening for clients', self.host, self.port)
-
 			self._shutdown = False
 
-			# start a game
-			Thread(name = 'game loop', target = self.run_game).start()
+			service_thread = Thread(name = 'socket loop', target = self.socket_listen)
+			service_thread.daemon = True
+			service_thread.start()
 
-			# loop as long as a shutdown was not requested
-			while not self._shutdown:
-				try:
-					# accept a connection from a client
-					client, address = self._ssock.accept()
-					logging.info('client from %s connected', address[0])
-					Player(self, client).start()
-				except Exception as e:
-					if not self._shutdown:
-						# not an expected exception
-						logging.critical('unexpected network error, shutting down server: %s', str(e))
+			# start a game
+			self.run_game()
+
 		except Exception as e:
 			logging.critical('unexpected error: %s', str(e))
 
@@ -101,7 +110,12 @@ class LoBotomyServer(Emitter):
 			self.emit_event(type = 'turn_start', turn = self.turn_number, num_players = len(self._in_game))
 
 			# wait the configured amount of time for players to submit commands
-			time.sleep(config.game.turn_duration / 1000)
+			if config.host.debug:
+				ans = input('>>> Press [enter] to continue turn or type "pdb" to start pdb: ')
+				if 'pdb' in ans:
+					pdb.Pdb(nosigint=True).set_trace()
+			else:
+				time.sleep(config.game.turn_duration / 1000)
 
 			# send all players the end turn command
 			for player in self._in_game:
@@ -118,6 +132,12 @@ class LoBotomyServer(Emitter):
 					player = player.name,
 					turns = player.dead_turns
 				)
+
+			debug_hosts = [p for p in self._in_game if p.name in config.host.debug_names]
+
+			# execute all actions as determined by server admin, for
+			# debug_hosts
+			self.handle_manually(debug_hosts)
 
 			# execute all requested move actions
 			self.execute_moves(player for player in self._in_game if player.move_action is not None)
@@ -138,6 +158,15 @@ class LoBotomyServer(Emitter):
 			return p_x is not None and x1 <= p_x < x2 and y1 <= p_y < y2
 
 		return set(player for player in self._in_game if in_bounds(player))
+
+	def handle_manually(self, players):
+		for p in players:
+		# Gather commands from user
+			commands = []
+			controller = manual_control.ManualControl(self, commands)
+			controller.cmdloop()
+			for c in commands:
+				getattr(p, 'signal_' + c['command'])(*list(c.values())[1:])
 
 	def execute_moves(self, players):
 		for player in players:
@@ -420,4 +449,3 @@ class LoBotomyServer(Emitter):
 		except:
 			# ignore at this point
 			pass
-
