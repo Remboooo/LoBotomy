@@ -20,6 +20,7 @@ class SpectatorEmitter(Emitter, Listener):
 		# keep track of last emitted state to send to new spectators
 		server.add_listener(self)
 		self._last_event = None
+		self._start_state = server.get_state()
 		t = Thread(name = 'spectator event pipe', target = self.consumer)
 		t.daemon = True
 		t.start()
@@ -41,11 +42,12 @@ class SpectatorEmitter(Emitter, Listener):
 		This avoids receiving an event before initial server state is
 		processed.
 		Do mind that state_callback will block the whole emitter thread...
-		state_callback is _NOT_ called when the server has not emitted any events yet.
 		"""
 		self._queuelock.acquire()
 		if self._last_event:
 			state_callback(self._last_event['server_state'])
+		else:
+			state_callback(self._start_state)
 		self.add_listener(listener)
 		self._queuelock.release()
 
