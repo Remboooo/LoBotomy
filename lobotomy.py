@@ -19,12 +19,12 @@ signal.signal(signal.SIGINT, shutdown)
 import logging
 logging.basicConfig(format = '[ %(levelname)8s ] %(message)s', level = logging.DEBUG)
 
-# start webinterface
-from lobotomy.webserver import WebServer
-webserver = WebServer(server)
+# start spectator interface
+from lobotomy.spectatorserver import SpectatorServer
+spectatorserver = SpectatorServer(server)
 
 # start the server
 server.serve_forever()
 
-# kill the webserver
-webserver.stop()
+# kill the spectatorserver
+spectatorserver.stop()
